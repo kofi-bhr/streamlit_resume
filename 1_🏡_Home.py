@@ -1,156 +1,148 @@
-
-from pathlib import Path
-
+#Initials
 import streamlit as st
-from streamlit_extras.switch_page_button import switch_page
-from PIL import Image
+import streamlit as st
+from streamlit.logger import get_logger
+from openai import OpenAI
 
-# ------------ PATH SETTINGS ----------
-current_dir = Path(__file__).parent if "__file__" in locals() else Path.cwd()
+LOGGER = get_logger(__name__)
 
-css_file = current_dir / "styles" / "main.css"
-
-resume_file = current_dir / "assets" / "cv_mouad.pdf"
-
-profile_pic = current_dir / "assets" / "home" /"profile-pic.png"
-
-my_zone_pic = current_dir / "assets" / "home" / "my_zone.png"
-
-# ------------ CONSTANTS ----------
-PAGE_TITLE = "Digital CV | Et-tali Mouad"
-PAGE_ICON = ":wave:"
-NAME = "Et-tali Mouad"
-DESCRIPTION = """
-Data Scientist @ Aqsone,  I help clients optimize their performance with AI and data.
-"""
-EMAIL = "mouad.et-tali@aqsone.com"
-SOCIAL_MEDIA = {
-    "LinkedIn": "https://www.linkedin.com/in/mouad-et-tali/",
-    "GitHub": "https://github.com/MouadEt-tali"
-}
-PROJECTS = {
-    "🏆 Dimensionality reduction/clustering of data from scientific articles/ wikipedia summaries/news headlines": "https://github.com/MouadEttali/NLP-and-Text_Mining",
-    "🏆 Implementation of a neural network for semi-supervised learning to predict MNIST data": "https://github.com/MouadEttali/ComputerVision_DeepLearning/tree/main/PseudoLabelingProject",
-    "🏆 Implementation of multiple regression and logistic regression algorithms from the mathematical foundations. ": "https://github.com/MouadEttali/From-scratch-machine-learning---From-mathematical-formulas-to-functioning-algorithms",
-    "🏆 This resume streamlit ": "https://github.com/MouadEttali/streamlit_resume",
-}
-
-st.set_page_config(page_title=PAGE_TITLE, page_icon=PAGE_ICON)
-
-
-st.title("Hello There")
-
-# --------------- HELPER FUNCTIONS -----------------------
-def V_SPACE(lines):
-    for _ in range(lines):
-        st.write('&nbsp;')
-
-def go_to_full_page(label,page):
-    personal_project = st.button(label)
-    if personal_project:
-        switch_page(page)
-
-
-# ----------- CSS, PDF & Profile Pic SETTINGS --------------
-
-with open(resume_file, "rb") as pdf_file:
-    PDFbyte = pdf_file.read()
-
-with open(css_file) as f:
-    st.markdown("<style>{}</style>".format(f.read()), unsafe_allow_html=True)
-
-profile_pic = Image.open(profile_pic)
-
-my_zone_pic = Image.open(my_zone_pic)
-# ------ HERO SECTION -----------
-
-cols = st.columns(2, gap='small')
-
-with cols[0]:
-    st.image(profile_pic, width=230)
-
-
-with cols[1]:
-    st.title(NAME)
-    st.write(DESCRIPTION)
-    st.download_button( 
-        label="📄 Download Resume",
-        data= PDFbyte,
-        file_name=resume_file.name,
-        mime="application/octet-stream"
+#Run
+def run():
+  
+  #CONFIGURE/SET UP PAGE
+  st.set_page_config(
+        page_title="Essay Grader by Kofi Hair-Ralston",
+        page_icon="memo",
+        layout="wide",
     )
-    st.write("📫",EMAIL)
+  st.title("📝 Essay Grader")
+
+  #Sidebar Content
+  st.sidebar.markdown("# Essay Grader 📝")
+  st.sidebar.markdown("### Academic Integrity Note")
+  st.sidebar.markdown("Just a friendly reminder that while my app is here to help you proofread and fine-tune your essays, you shouldn’t use it to plagiarize or cut corners. Always get permission from your teacher before using the app, because honesty and academic integrity are super important to me. I'm not responsible for any consequences if the app's misused, but use it right and it can help! :)")
+  st.sidebar.markdown("-Kofi")
+  
+  #GARTHER USER INPUT
+  key = st.text_input("What's your OpenAI API key?", placeholder='sk-...')
+  essay = st.text_area("Upload your essay")
+  assignment_sheet = st.text_area("Upload the assignment sheet")
+  exemplar = st.text_area("Upload an exemplar essay")
+  desired = st.text_input("What's your desired grade?", placeholder="I want at least a B+, or 88")
+  harshness = st.select_slider("Select a hashness level", options=["Easy Grader", "Average Grader", "Slightly Hard Grader", "Extremely Hard Grader", "Impossibly Hard Grader"])
+  type = st.selectbox("What type of essay is it?", ("Argumentative (Persuasive)", "Narrative (Personal)", "Descriptive", "Expository"))
+  level = st.selectbox("Grade", ("Freshman", "Sophomore", "Junior", "Senior"))
+  
+  button = st.button("check")
+
+  #LLM CONFIG
+  prompt = f"""Please carefully review the following {type} essay (with a harshness level of {harshness}%), which I will provide here: [{essay}]
+
+  Also take into account the following information, if provided:
+
+  Desired Grade: [{desired}]
+  Exemplar Essay: [{exemplar}]
+  Assignment Sheet: [{assignment_sheet}]
+
+  Remember to grade it like a {type} essay, at the level of a {level} Honors English class.
+
+  First, go through the essay and grade it strictly and granularly according to the rubric or assignment sheet. Provide detailed notes on each sentence and word choice, commenting on how they affect the rubric criteria positively or negatively. 
+
+  Based on this analysis, assign an appropriate letter grade with modifiers if applicable (plus, minus, etc.) and a numerical grade out of 100. Provide a detailed justification referencing specific rubric criteria. Write this rubric-based grade in a “Rubric Grade” section.
+
+  Next, evaluate the essay qualitatively, focusing on the ideas presented, the structure and flow, the maturity of the writing voice, sentence structure, and the overall impression it makes. Assign one of the following grade categories, from best to worst: Outstanding, Exceeds Expectations, Meets Expectations, Approaching Expectations, Acceptable, Poor, Dreadful. Justify your grade with a detailed explanation of your assessment. Put this inside a “Qualitative Grade” section.
+
+  Then, determine the maximum grade the essay could receive if all small mistakes (spelling, grammar, punctuation, etc.) were corrected, without making major changes to the content. Provide this as a letter grade with modifiers and a percentage inside a “Maximum Grade” section.
+
+  Finally, give a detailed line-by-line breakdown of the essay. Quote the original text in a block quote, interspersing your comments every few sentences as an unordered list. Remark on the rubric criteria, qualitative aspects, and correctable errors throughout the essay.
+
+  Format your overall response in markdown like this:
+
+  # Grading
+
+  ## Quantitative Grade
+
+  *Numerical Grade:* [NUMBER GRADE] ([LETTER GRADE])
+
+  [JUSTIFICATION]
+
+  ## Qualitative Grade
+
+  *Qualitative Grade:* [GRADE]
+
+  [JUSTIFICATION]
+
+  ## Maximum Grade
+
+  *Maximum Current Grade:* [GRADE]
+
+  [JUSTIFICATION]
+
+  *Expected Grade After Following Advice:* [GRADE]
+
+  [JUSTIFICATION]
+
+  # Breakdown
+
+  > [LINE FROM ESSAY]
+  —--
+  - :green[positive comment 1]
+  - :green[positive comment 2]
+  - :red[constructive comment 1]
+  - :red[constructive comment 2]
+  - :red[constructive comment 3]
+  ```
+  Revision
+  ```
+
+  > [ANOTHER LINE FROM ESSAY]
+  —--
+  - :green[positive comment 1]
+  - :green[positive comment 2]
+  - :red[constructive comment 1]
+  - :red[constructive comment 2]
+  - :red[constructive comment 3]
+  ```
+  Revision
+  ```
+
+  Remember, be detailed, strict, and harsh in your grading and feedback. Point out every flaw and weakness to help the writer improve. Try to employ about 3 critical comments for every complimentary one, with about 5 comments per section. Be thorough and analytical rather than complimentary. You should also make sure to prioritize useful, specific, actionable feedback in the comments relating back to the exemplar and assignment sheet/rubric.
+  
+  As for the revisions, make sure to continue using the author's original voice and style, MAKING SURE not to use ANY of the words in the //BAN LIST//. Your revisions should not be shortned or condensed versions of the original text and should maintain all of the elements possible to keep while making as few changes as possible while still employing the advice. Your advice should fall in the "above and beyond" category in grading, and the notes should make the teacher impressed. Be picky and specific.
+
+  BAN LIST:
+
+  //BAN LIST//
+  Before generating any text, examine the list below and avoid all cases of these words and phrases: "Informed decisions", "blueprint", "realm", "holistic", "fosters", "informed investment decisions", "informed", "more than just", "it’s about" "navigating", "beacon", "bustling", "treasure trove", "landscape", "tailored", "tailor", “roadmap” , “are more than just”, "tailoring", "dive in", "delving", “streamlining” "dynamic", "robust", "stay tuned", "in conclusion", seamless, bustling, “isn't just”, “not just a”, “isn't merely an”, “cornerstone” “bridge”, “whopping”, “testament”, “paramount” “diving into”, “delve into”, “pivotal” “navigating” “This isn't a”, “isn't just about“ “dives deep”, "It's not just about", “delve”, “harness”, journey”, “elevate”, “maze”, “puzzle”, “overwhelmed", "foster”, and other robotic cliches”
+  //BAN LIST//
+  """
 
 
-# -------- SOCIALS ---------
+  #ARI
+  def ari(essay):
+    words = essay.split()
+    sentences = essay.split('. ') + essay.split('! ') + essay.split('? ')
+    words_length = sum(len(word.strip('.,!?')) for word in words) / len(words)
+    sentences_length = len(words) / len(sentences)
+    ari = 4.71 * words_length + 0.5 * sentences_length - 21.43
+    return int(ari)
+  
+  #PLAY
+  if button and essay and assignment_sheet and exemplar and desired and key:
+      client = OpenAI(api_key=key)
+      response = client.chat.completions.create(
+      model="gpt-4o",
+      messages=[
+        {"role": "user", "content": prompt}
+      ]
+    )
+      st.write("### Answer")
+      st.write("## Grade: " + str(ari(essay)))
+      st.toast('Your Essay is Ready!', icon='👀')
+      st.balloons()
+      answer = str(response.choices[0].message.content)
+      st.write(answer)
 
-V_SPACE(1)
-
-cols = st.columns(len(SOCIAL_MEDIA))
-for index, (platform,link) in enumerate(SOCIAL_MEDIA.items()):
-    cols[index].write(f"[{platform}]({link})")
-
-
-# ------- EXPERIENCE AND QUALIFS --------
-
-V_SPACE(1)
-st.subheader('About me 🛝')
-st.write(
-    """
-    - ✔️ **3 years of experience** in data science consulting firms for clients like <span style="color:#f50057; font-size: 15;">Total Energies , ONCF , Nexans, Allegro Musique </span> (Details in Professional Experiences)
-    - ✔️ Built multiple ML based web applications (Python, Javascript, D3js, Streamlit) with deployment in AWS **(Sagemaker, API Gateway, Lambda).** 
-    - ✔️ Expertise in statistical principles and classical ML models
-    - ✔️ Product and value oriented mindset ( my dream is to build valuable ML tools, my nightmare is models dying in notebooks )  
-    - ✔️ Work feels best when it's **challenging enough to push me and not easy enough to make me bored**
-    """
-,unsafe_allow_html=True)
-st.image(my_zone_pic)
-st.write(""" ⚠️ Warning : if you hand me a boring task <span style="color:#f50057; font-size: 15;">I will try to automate it.</span>""",unsafe_allow_html=True)
-# --- SKILLS ---
-st.write('\n')
-st.subheader("Hard Skills 🔬")
-st.write(
-    """
-- 👩‍💻 Programming: Python, SQL, pySpark
-- 🧪 Data science : Machine Learning, Ensemble methods (Bagging, Boosting) / kernel methods (SVM, SPCA), Deep Learning, Natural Language Processing, Optimisation
-- 📊 Data Visulization: PowerBi, Qlicksense, D3js
-- 📚 Transfer Learning: LLMS, CNNs, Transformers ...
-- 🗄️ Databases: Postgres, MongoDB, MySQL (on Premise and Cloud)
-- ☁️ Cloud : AWS (Certified Cloud Practitioner (CLF)), Palantir Foundry
-- 🚀 Deployment : Docker, Heroku, AWS 
-"""
-)
-go_to_full_page("See my certifications and trainings" , "Certifications")
-
-# --------- work history ---------
-V_SPACE(1)
-st.subheader("Recent Job Experience 🧑‍💻")
-st.write('---')
-
-st.write('\n')
-st.write("🚧", "**Data Scientist | Aqsone**")
-st.write("09/2022 - Present")
-st.write(
-    """
-- ► Collaborated on the creation of a <span style="color:#f50057; font-size: 15;">Digital costing</span>  solution that predicts cost of clothing items using Image and description, based on Convolutional Neural Networks and Transformers.
-- ► Development of a <span style="color:#f50057; font-size: 15;">360° Procurement</span> solution using Python, AWS MySQL and Google Data Studio with interactive dashboards including Forecasts, Spend Analysis, Supplier audit, CO2 emissions and more.
-- ► Participation in the creation of a <span style="color:#f50057; font-size: 15;">Succession Planning</span> solution that uses Machine Learning for optimal successor choice, using d3js for visualizations.
-- ► Commercial work : Participation in the <span style="color:#f50057; font-size: 15;">the developement of multiple proofs of concept</span> to demonstrate to prospects and clients for biz dev purposes
-- ► Internal work : Along 2 other data scientist and an Agile coach, we handle the management of different courses and certifications for the rest of the company.
-- ► Internal work : organization monthly presentations about the state of the art in the fields of data, AI and ML. As well as introduce new tools to our collaborators
-""" , unsafe_allow_html=True
-)
-
-go_to_full_page("Check out all my experiences" , "Professional Experiences")
-
-
-# --- Projects & Accomplishments ---
-st.write('\n')
-st.subheader("Personal Projects 🧙‍♂️")
-st.write("---")
-for project, link in PROJECTS.items():
-    st.write(f"[{project}]({link})")
-
-
-
-go_to_full_page("More Personal Projects" , "Personal Projects")
+if __name__ == "__main__":
+    run()
+    
